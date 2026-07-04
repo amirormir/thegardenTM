@@ -108,16 +108,19 @@ export default function LeagueRulebookPage() {
               5. Transferts
             </a>
             <a href="#matchs" className="transition-colors hover:text-foreground">
-              6. Matchs
+              6. Matchs &amp; format
+            </a>
+            <a href="#paris" className="transition-colors hover:text-foreground">
+              7. Paris
             </a>
             <a href="#comportement" className="transition-colors hover:text-foreground">
-              7. Comportement
+              8. Comportement
             </a>
             <a href="#remplacants" className="transition-colors hover:text-foreground">
-              8. Remplaçants
+              9. Remplaçants
             </a>
             <a href="#rappels" className="transition-colors hover:text-foreground">
-              9. Rappels et points en attente
+              10. Rappels et points en attente
             </a>
           </nav>
         </aside>
@@ -457,7 +460,7 @@ export default function LeagueRulebookPage() {
             </RuleSubsection>
           </RuleSection>
 
-          <RuleSection id="matchs" title="6. Matchs">
+          <RuleSection id="matchs" title="6. Matchs & format">
             <RuleSubsection title="6.1 Deadlines">
               <RuleList
                 items={[
@@ -469,16 +472,101 @@ export default function LeagueRulebookPage() {
               />
             </RuleSubsection>
 
-            <RuleSubsection title="6.2 Format de ligue">
+            <RuleSubsection title="6.2 Format de la ligue">
+              <p>
+                Le format est <strong className="text-foreground">volontairement classique</strong> :
+                une longue phase régulière en aller-retour, puis des playoffs qui décident du titre.
+              </p>
+
+              <p className="text-foreground font-semibold">Phase régulière</p>
               <RuleList
                 items={[
-                  <>Le format ainsi que les tiebreaks seront annoncés par le staff à l&apos;approche des matchs.</>,
-                  <>Il est impossible d&apos;établir un format stable sans connaître à l&apos;avance le nombre d&apos;équipes.</>,
+                  <>La ligue réunit <strong className="text-foreground">10 équipes</strong>.</>,
+                  <>
+                    Chaque équipe joue au total <strong className="text-foreground">18 BO3</strong>, en{' '}
+                    <strong className="text-foreground">aller-retour</strong> : on affronte chaque autre
+                    équipe deux fois (une fois côté bleu, une fois côté rouge).
+                  </>,
+                  <>Tous les matchs de la phase régulière sont des <strong className="text-foreground">BO3</strong>.</>,
+                  <>La phase régulière se joue intégralement en <strong className="text-foreground">Fearless Draft</strong> (voir 6.3).</>,
+                  <>
+                    Le classement se fait au <strong className="text-foreground">nombre de BO gagnés</strong>. En cas
+                    d&apos;égalité, on applique les tiebreaks (voir 6.4).
+                  </>,
+                ]}
+              />
+
+              <p className="text-foreground font-semibold">Playoffs</p>
+              <RuleList
+                items={[
+                  <>Les <strong className="text-foreground">6 premiers</strong> du classement sont qualifiés en playoffs.</>,
+                  <>Les <strong className="text-foreground">4 derniers</strong> sont éliminés.</>,
+                  <>
+                    Le seeding suit le classement de la phase régulière : les{' '}
+                    <strong className="text-foreground">4 premiers</strong> entrent dans le{' '}
+                    <strong className="text-foreground">Winner Bracket</strong>, les{' '}
+                    <strong className="text-foreground">5e et 6e</strong> démarrent dans le{' '}
+                    <strong className="text-foreground">Loser Bracket</strong>.
+                  </>,
+                  <>Les playoffs se disputent en <strong className="text-foreground">double élimination</strong>.</>,
+                  <>
+                    Les séries de playoffs se jouent en <strong className="text-foreground">BO5</strong>, toujours en{' '}
+                    <strong className="text-foreground">Fearless Draft</strong>.
+                  </>,
                 ]}
               />
             </RuleSubsection>
 
-            <RuleSubsection title="6.3 Absences et remplacements">
+            <RuleSubsection title="6.3 Fearless Draft">
+              <RuleList
+                items={[
+                  <>
+                    En Fearless, tout champion <strong className="text-foreground">joué lors d&apos;une game précédente</strong>{' '}
+                    de la même série devient <strong className="text-foreground">indisponible</strong> pour le reste de la série.
+                  </>,
+                  <>
+                    Cette règle s&apos;applique aux <strong className="text-foreground">deux équipes</strong> : un champion « brûlé »
+                    par une game ne peut plus être pick par personne jusqu&apos;à la fin du BO.
+                  </>,
+                  <>Les picks se réinitialisent au <strong className="text-foreground">début de chaque nouvelle série</strong>.</>,
+                  <>Toutes les drafts se font sur le site Garden (voir 6.5).</>,
+                ]}
+              />
+            </RuleSubsection>
+
+            <RuleSubsection title="6.4 Tiebreaks (départage au classement)">
+              <p>
+                En cas d&apos;égalité au classement (même nombre de BO gagnés), les équipes sont départagées dans
+                l&apos;ordre suivant, calqué sur les <strong className="text-foreground">règles officielles Riot Games en
+                esport</strong>. On passe au critère suivant uniquement si le précédent ne suffit pas à départager :
+              </p>
+              <RuleList
+                items={[
+                  <>
+                    <strong className="text-foreground">1. Différence de maps</strong> : différence entre les games
+                    gagnées et les games perdues sur l&apos;ensemble de la phase régulière.
+                  </>,
+                  <>
+                    <strong className="text-foreground">2. Confrontation directe</strong> : résultat des BO joués
+                    directement entre les équipes à égalité.
+                  </>,
+                  <>
+                    <strong className="text-foreground">3. Temps de jeu</strong> : on compare le temps moyen mis pour
+                    remporter ses games — l&apos;équipe qui gagne le plus vite passe devant.
+                  </>,
+                  <>
+                    <strong className="text-foreground">4. BO de départage</strong> : si rien n&apos;a séparé les équipes,
+                    un <strong className="text-foreground">BO décisif</strong> est joué pour trancher.
+                  </>,
+                ]}
+              />
+              <p className="text-sm text-foreground-muted">
+                Pour une égalité impliquant plus de deux équipes, les mêmes critères s&apos;appliquent successivement
+                jusqu&apos;à séparer tout le monde ; le staff arbitre tout cas particulier.
+              </p>
+            </RuleSubsection>
+
+            <RuleSubsection title="6.5 Absences et remplacements">
               <RuleList
                 items={[
                   <>
@@ -498,7 +586,7 @@ export default function LeagueRulebookPage() {
               />
             </RuleSubsection>
 
-            <RuleSubsection title="6.4 Draft">
+            <RuleSubsection title="6.6 Draft">
               <RuleList
                 items={[
                   <>Toutes les drafts sans exception doivent se faire sur le site Garden.</>,
@@ -507,7 +595,85 @@ export default function LeagueRulebookPage() {
             </RuleSubsection>
           </RuleSection>
 
-          <RuleSection id="comportement" title="7. Comportement">
+          <RuleSection id="paris" title="7. Paris">
+            <div className="border border-hairline bg-surface px-5 py-4 text-sm text-foreground-dim">
+              🎰 Pour parier, il faut <strong className="text-foreground">obligatoirement un compte sur le site
+              Garden</strong>. Toutes les valeurs et limites de cette section peuvent être ajustées par le staff.
+            </div>
+
+            <RuleSubsection title="7.1 Principe">
+              <RuleList
+                items={[
+                  <>
+                    Chaque membre dispose d&apos;un <strong className="text-foreground">solde de paris en monnaie
+                    virtuelle</strong> pour miser sur les résultats des matchs de la ligue.
+                  </>,
+                  <>
+                    Les <strong className="text-foreground">cotes d&apos;ouverture</strong> sont établies à partir des votes
+                    de la communauté : elles représentent la <strong className="text-foreground">chance estimée de chaque
+                    équipe de finir 1re de la ligue</strong>.
+                  </>,
+                  <>
+                    Une cote d&apos;ouverture n&apos;est qu&apos;un point de départ : elle est{' '}
+                    <strong className="text-foreground">recalculée en fonction des résultats</strong> tout au long de la saison.
+                  </>,
+                  <>La monnaie de paris est <strong className="text-foreground">virtuelle</strong> et n&apos;a aucune valeur réelle.</>,
+                ]}
+              />
+            </RuleSubsection>
+
+            <RuleSubsection title="7.2 Règles de pari">
+              <RuleList
+                items={[
+                  <>
+                    <strong className="text-foreground">Interdiction de parier sur sa propre équipe</strong> : un joueur ne
+                    peut miser ni sur, ni contre un match impliquant son équipe (conflit d&apos;intérêt).
+                  </>,
+                  <>
+                    Un pari est <strong className="text-foreground">verrouillé au coup d&apos;envoi du match</strong> : plus
+                    aucune mise ni modification n&apos;est possible une fois la première game lancée.
+                  </>,
+                  <>
+                    La <strong className="text-foreground">cote appliquée est celle affichée au moment où le pari est
+                    validé</strong>, même si elle évolue ensuite.
+                  </>,
+                  <>La mise est <strong className="text-foreground">débitée immédiatement</strong> ; les gains sont crédités à la clôture du match.</>,
+                  <>
+                    Une <strong className="text-foreground">mise minimum et une mise maximum</strong> peuvent être fixées par
+                    le staff pour éviter les abus.
+                  </>,
+                  <>Il est impossible de parier une somme supérieure à son solde disponible.</>,
+                ]}
+              />
+            </RuleSubsection>
+
+            <RuleSubsection title="7.3 Annulations et remboursements">
+              <RuleList
+                items={[
+                  <>
+                    En cas de <strong className="text-foreground">match reporté, annulé ou forfait</strong>, les mises
+                    concernées sont <strong className="text-foreground">remboursées</strong>.
+                  </>,
+                  <>Un pari sur une game rejouée (remake) suit le sort du match tel que tranché par le staff.</>,
+                ]}
+              />
+            </RuleSubsection>
+
+            <RuleSubsection title="7.4 Intégrité">
+              <RuleList
+                items={[
+                  <>
+                    Tout <strong className="text-foreground">arrangement de résultat</strong> (match truqué, entente entre
+                    équipes ou joueurs pour influencer un pari) est <strong className="text-foreground">strictement
+                    interdit</strong> et entraîne de lourdes sanctions.
+                  </>,
+                  <>Le staff se réserve le droit d&apos;annuler tout pari suspect et de sanctionner les personnes impliquées.</>,
+                ]}
+              />
+            </RuleSubsection>
+          </RuleSection>
+
+          <RuleSection id="comportement" title="8. Comportement">
             <RuleSubsection title="7.1 Recommandations">
               <RuleList
                 items={[
@@ -538,7 +704,7 @@ export default function LeagueRulebookPage() {
             </RuleSubsection>
           </RuleSection>
 
-          <RuleSection id="remplacants" title="8. Remplaçants">
+          <RuleSection id="remplacants" title="9. Remplaçants">
             <RuleSubsection title="8.1 Prérequis de recrutement">
               <RuleList
                 items={[
@@ -576,13 +742,11 @@ export default function LeagueRulebookPage() {
             </RuleSubsection>
           </RuleSection>
 
-          <RuleSection id="rappels" title="9. Rappels et points en attente">
+          <RuleSection id="rappels" title="10. Rappels et points en attente">
             <RuleSubsection title="À venir">
               <RuleList
                 items={[
                   <>Règles précises sur les remakes.</>,
-                  <>Règles précises sur le classement.</>,
-                  <>Règles précises sur les tiebreaks.</>,
                   <>Et tout autre point non encore couvert dans ce document.</>,
                 ]}
               />
