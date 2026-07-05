@@ -504,6 +504,8 @@ export const playerRouter = createTRPCRouter({
             name: true,
             description: true,
             awardedAt: true,
+            seasonLabel: true,
+            teamLabel: true,
             season: {
               select: {
                 id: true,
@@ -685,6 +687,8 @@ export const playerRouter = createTRPCRouter({
             name: true,
             description: true,
             awardedAt: true,
+            seasonLabel: true,
+            teamLabel: true,
             seasonId: true,
             season: {
               select: {
@@ -1150,8 +1154,10 @@ export const playerRouter = createTRPCRouter({
       const trophy = await tx.trophy.create({
         data: {
           playerId: input.playerId,
-          seasonId: input.seasonId,
-          teamId: input.teamId ?? null,
+          seasonLabel: input.seasonLabel,
+          teamLabel: input.teamLabel ?? null,
+          seasonId: null,
+          teamId: null,
           name: input.name,
           awardedAt: input.awardedAt,
           ...(input.description !== undefined ? { description: input.description } : {}),
@@ -1159,8 +1165,8 @@ export const playerRouter = createTRPCRouter({
         select: {
           id: true,
           name: true,
-          seasonId: true,
-          teamId: true,
+          seasonLabel: true,
+          teamLabel: true,
         },
       });
 
@@ -1174,8 +1180,8 @@ export const playerRouter = createTRPCRouter({
             playerId: input.playerId,
             gameName: player.gameName,
             name: input.name,
-            seasonId: input.seasonId,
-            teamId: input.teamId ?? null,
+            seasonLabel: input.seasonLabel,
+            teamLabel: input.teamLabel ?? null,
           },
         }),
       });
@@ -1190,6 +1196,8 @@ export const playerRouter = createTRPCRouter({
       select: {
         id: true,
         playerId: true,
+        seasonLabel: true,
+        teamLabel: true,
         seasonId: true,
         teamId: true,
         name: true,
@@ -1206,8 +1214,11 @@ export const playerRouter = createTRPCRouter({
       const updated = await tx.trophy.update({
         where: { id: input.id },
         data: {
-          seasonId: input.seasonId,
-          teamId: input.teamId ?? null,
+          seasonLabel: input.seasonLabel,
+          teamLabel: input.teamLabel ?? null,
+          // Migrate legacy FK-based rows to free-text on edit.
+          seasonId: null,
+          teamId: null,
           name: input.name,
           awardedAt: input.awardedAt,
           ...(input.description !== undefined ? { description: input.description } : {}),
@@ -1215,8 +1226,8 @@ export const playerRouter = createTRPCRouter({
         select: {
           id: true,
           playerId: true,
-          seasonId: true,
-          teamId: true,
+          seasonLabel: true,
+          teamLabel: true,
           name: true,
         },
       });

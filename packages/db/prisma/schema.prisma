@@ -401,11 +401,16 @@ model Trophy {
   id          String   @id @default(cuid())
   name        String
   description String?
-  seasonId    String
+  // Season/team are free-text labels typed by admins on player cards — no need
+  // to register every season/team as an entity. The optional FK relations below
+  // are kept only for backward compatibility with legacy trophy rows.
+  seasonLabel String?
+  teamLabel   String?
+  seasonId    String?
   teamId      String?
   playerId    String?
   awardedAt   DateTime @default(now())
-  season      Season   @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  season      Season?  @relation(fields: [seasonId], references: [id], onDelete: Restrict)
   team        Team?    @relation("TeamTrophies", fields: [teamId], references: [id], onDelete: SetNull)
   player      Player?  @relation("PlayerTrophies", fields: [playerId], references: [id], onDelete: SetNull)
 

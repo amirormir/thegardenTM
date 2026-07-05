@@ -325,32 +325,38 @@ export default async function PlayerDetailPage({ params }: PlayerDetailPageProps
           <p className="label-mono">§ 03 · Palmarès</p>
           <h2 className="mt-3 display-md text-foreground">Distinctions du joueur.</h2>
           <div className="mt-6 grid gap-px border-t border-hairline bg-hairline md:grid-cols-2 xl:grid-cols-3">
-            {player.playerTrophies.map((trophy) => (
-              <article key={trophy.id} className="flex flex-col bg-background px-5 py-5 md:px-6">
-                <p className="label-mono">{trophy.season.name}</p>
-                <h3 className="mt-3 font-display text-2xl tracking-tight text-foreground">
-                  {trophy.name}
-                </h3>
-                <p className="mt-3 text-sm leading-6 text-foreground-dim">
-                  {trophy.description ?? 'Distinction officielle enregistrée dans Garden.'}
-                </p>
-                <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-6 label-mono">
-                  {trophy.team ? (
-                    <TeamInline
-                      name={trophy.team.name}
-                      shortCode={trophy.team.shortCode}
-                      logoUrl={trophy.team.logoUrl ?? null}
-                      size="xs"
-                      text={trophy.team.shortCode}
-                      textClassName="label-mono"
-                    />
-                  ) : (
-                    <span>Individuel</span>
-                  )}
-                  <span className="tabular-nums">{formatCompactDate(trophy.awardedAt)}</span>
-                </div>
-              </article>
-            ))}
+            {player.playerTrophies.map((trophy) => {
+              const seasonName = trophy.seasonLabel ?? trophy.season?.name ?? '—';
+              const teamName = trophy.teamLabel ?? trophy.team?.name ?? null;
+              return (
+                <article key={trophy.id} className="flex flex-col bg-background px-5 py-5 md:px-6">
+                  <p className="label-mono">{seasonName}</p>
+                  <h3 className="mt-3 font-display text-2xl tracking-tight text-foreground">
+                    {trophy.name}
+                  </h3>
+                  <p className="mt-3 text-sm leading-6 text-foreground-dim">
+                    {trophy.description ?? 'Distinction officielle enregistrée dans Garden.'}
+                  </p>
+                  <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-6 label-mono">
+                    {trophy.team ? (
+                      <TeamInline
+                        name={trophy.team.name}
+                        shortCode={trophy.team.shortCode}
+                        logoUrl={trophy.team.logoUrl ?? null}
+                        size="xs"
+                        text={trophy.team.shortCode}
+                        textClassName="label-mono"
+                      />
+                    ) : teamName ? (
+                      <span>{teamName}</span>
+                    ) : (
+                      <span>Individuel</span>
+                    )}
+                    <span className="tabular-nums">{formatCompactDate(trophy.awardedAt)}</span>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
       ) : null}

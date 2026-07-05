@@ -196,7 +196,6 @@ export function AdminPlayersManager() {
 
   const players = registryQuery.data ?? [];
   const teams = optionsQuery.data?.teams ?? [];
-  const seasons = optionsQuery.data?.seasons ?? [];
   const selectedPlayer = selectedPlayerQuery.data ?? null;
   const filteredPlayers = players.filter((player) => {
     const needle = playerSearch.trim().toLowerCase();
@@ -421,8 +420,8 @@ export function AdminPlayersManager() {
       await createTrophy.mutateAsync({
         playerId: selectedPlayerId,
         name: getFormValue(formData, 'name').trim(),
-        seasonId: getFormValue(formData, 'seasonId'),
-        teamId: parseNullableText(getFormValue(formData, 'teamId')),
+        seasonLabel: getFormValue(formData, 'seasonLabel').trim(),
+        teamLabel: parseNullableText(getFormValue(formData, 'teamLabel')) ?? undefined,
         awardedAt: new Date(getFormValue(formData, 'awardedAt')),
         description: getFormValue(formData, 'description').trim() || undefined,
       });
@@ -450,8 +449,8 @@ export function AdminPlayersManager() {
       await updateTrophy.mutateAsync({
         id: trophyId,
         name: getFormValue(formData, 'name').trim(),
-        seasonId: getFormValue(formData, 'seasonId'),
-        teamId: parseNullableText(getFormValue(formData, 'teamId')),
+        seasonLabel: getFormValue(formData, 'seasonLabel').trim(),
+        teamLabel: parseNullableText(getFormValue(formData, 'teamLabel')) ?? undefined,
         awardedAt: new Date(getFormValue(formData, 'awardedAt')),
         description: getFormValue(formData, 'description').trim() || undefined,
       });
@@ -1019,30 +1018,8 @@ export function AdminPlayersManager() {
                   onSubmit={handleCreateTrophy}
                 >
                   <Input name="name" required placeholder="Ex: Spring Split MVP" />
-                  <Select
-                    name="seasonId"
-                    required
-                    defaultValue={seasons[0]?.id ?? ''}
-                    disabled={seasons.length === 0}
-                  >
-                    <option value="" disabled>
-                      Selectionner une saison
-                    </option>
-                    {seasons.map((season) => (
-                      <option key={season.id} value={season.id}>
-                        {season.name}
-                        {season.isCurrent ? ' (current)' : ''}
-                      </option>
-                    ))}
-                  </Select>
-                  <Select name="teamId" defaultValue="">
-                    <option value="">Sans team</option>
-                    {teams.map((team) => (
-                      <option key={team.id} value={team.id}>
-                        {team.name} ({team.shortCode})
-                      </option>
-                    ))}
-                  </Select>
+                  <Input name="seasonLabel" required placeholder="Saison (ex: Spring Split 2026)" />
+                  <Input name="teamLabel" placeholder="Équipe (vide si individuel)" />
                   <Input
                     name="awardedAt"
                     type="date"
@@ -1052,7 +1029,7 @@ export function AdminPlayersManager() {
                   <Button
                     type="submit"
                     size="sm"
-                    disabled={createTrophy.isPending || seasons.length === 0}
+                    disabled={createTrophy.isPending}
                     icon={
                       createTrophy.isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -1087,22 +1064,17 @@ export function AdminPlayersManager() {
                         onSubmit={(event) => handleUpdateTrophy(event, trophy.id)}
                       >
                         <Input name="name" required defaultValue={trophy.name} />
-                        <Select name="seasonId" required defaultValue={trophy.seasonId}>
-                          {seasons.map((season) => (
-                            <option key={season.id} value={season.id}>
-                              {season.name}
-                              {season.isCurrent ? ' (current)' : ''}
-                            </option>
-                          ))}
-                        </Select>
-                        <Select name="teamId" defaultValue={trophy.teamId ?? ''}>
-                          <option value="">Sans team</option>
-                          {teams.map((team) => (
-                            <option key={team.id} value={team.id}>
-                              {team.name} ({team.shortCode})
-                            </option>
-                          ))}
-                        </Select>
+                        <Input
+                          name="seasonLabel"
+                          required
+                          placeholder="Saison"
+                          defaultValue={trophy.seasonLabel ?? trophy.season?.name ?? ''}
+                        />
+                        <Input
+                          name="teamLabel"
+                          placeholder="Équipe (vide si individuel)"
+                          defaultValue={trophy.teamLabel ?? trophy.team?.name ?? ''}
+                        />
                         <Input
                           name="awardedAt"
                           type="date"
@@ -1138,9 +1110,10 @@ export function AdminPlayersManager() {
                         </div>
                         <div className="md:col-span-2 xl:col-span-6 flex flex-wrap items-center justify-between gap-2 text-xs uppercase tracking-[0.06em] text-foreground-dim">
                           <span>
-                            {trophy.team
-                              ? `${trophy.team.name} (${trophy.team.shortCode})`
-                              : 'Distinction individuelle'}
+                            {trophy.teamLabel ??
+                              (trophy.team
+                                ? `${trophy.team.name} (${trophy.team.shortCode})`
+                                : 'Distinction individuelle')}
                           </span>
                           <span>{formatDateTime(trophy.awardedAt)}</span>
                         </div>

@@ -141,8 +141,8 @@ export const marketValueHistoryDeleteSchema = z.object({
 
 export const playerTrophyCreateSchema = z.object({
   playerId: z.string().min(1),
-  seasonId: z.string().min(1),
-  teamId: optionalNullableIdSchema,
+  seasonLabel: z.string().trim().min(1).max(120),
+  teamLabel: optionalTrimmedString.pipe(z.string().max(120).optional()),
   name: z.string().trim().min(1).max(120),
   description: optionalTrimmedString.pipe(z.string().max(255).optional()),
   awardedAt: z.coerce.date(),
@@ -150,8 +150,8 @@ export const playerTrophyCreateSchema = z.object({
 
 export const playerTrophyUpdateSchema = z.object({
   id: z.string().min(1),
-  seasonId: z.string().min(1),
-  teamId: optionalNullableIdSchema,
+  seasonLabel: z.string().trim().min(1).max(120),
+  teamLabel: optionalTrimmedString.pipe(z.string().max(120).optional()),
   name: z.string().trim().min(1).max(120),
   description: optionalTrimmedString.pipe(z.string().max(255).optional()),
   awardedAt: z.coerce.date(),
