@@ -318,7 +318,11 @@ export function useDraftSocket(draftId: string): UseDraftSocketResult {
         });
       });
 
-      socket.on('draft:timer', ({ deadline }) => {
+      socket.on('draft:timer', ({ step, deadline }) => {
+        // Guard against the legacy realtime ping echo (step 0), which replied on
+        // this event with deadline = the client's own ping timestamp and would
+        // clobber the countdown to ~0. Real step timers always carry step >= 1.
+        if (step === 0) return;
         setTimerDeadline(deadline);
       });
 
