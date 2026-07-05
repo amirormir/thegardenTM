@@ -53,6 +53,7 @@ export async function hydrateStateFromDatabase(draftId: string): Promise<DraftSt
       currentStep: true,
       startedAt: true,
       completedAt: true,
+      firstPickSide: true,
       actions: {
         orderBy: { step: 'asc' },
         select: {
@@ -73,6 +74,7 @@ export async function hydrateStateFromDatabase(draftId: string): Promise<DraftSt
   const base = createInitialState({
     draftId: draft.id,
     fearlessLockedChampionIds: fearless,
+    firstPickSide: draft.firstPickSide ?? 'BLUE',
   });
 
   const actions: LockedAction[] = draft.actions.map((a: {
@@ -173,7 +175,9 @@ export async function markDraftCoinflipStarted(
       status: 'COINFLIP',
       coinflipWinnerTeamId: winnerTeamId,
       coinflipDecision: null,
+      coinflipLoserDecision: null,
       coinflipResolvedAt: null,
+      firstPickSide: null,
     },
   });
 }

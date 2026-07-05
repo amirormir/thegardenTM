@@ -251,7 +251,7 @@ export function DraftRoomLive({
       <header className="flex flex-wrap items-center justify-between gap-4 border border-hairline bg-surface px-5 py-4">
         <ConnectionPill status={socket.status} />
         <StepBreadcrumb currentStep={state?.currentStep ?? 0} status={status} />
-        <DraftTimer deadline={socket.timerDeadline} />
+        <DraftTimer deadline={socket.timerDeadline} offset={socket.serverOffset} />
       </header>
 
       <DraftControlBar draftId={activeDraftId} status={status} role={socket.role} />
@@ -698,15 +698,27 @@ function CoinflipPanel({
   }, [coinflipResult?.winnerTeamId, coinflipResult?.blueTeamId, coinflipResult?.redTeamId]);
 
   const winnerTeamId = coinflipState?.winnerTeamId ?? coinflipResult?.winnerTeamId ?? null;
+  const loserTeamId =
+    coinflipState?.loserTeamId ??
+    (winnerTeamId ? (winnerTeamId === blueTeam.id ? redTeam.id : blueTeam.id) : null);
   const decision = coinflipState?.decision ?? null;
-  const winnerName =
-    winnerTeamId === blueTeam.id
-      ? blueTeam.name
-      : winnerTeamId === redTeam.id
-        ? redTeam.name
-        : 'Equipe inconnue';
-  const isWinner =
-    role === 'DEV_DUAL_CAPTAIN' || (teamId !== null && winnerTeamId !== null && teamId === winnerTeamId);
+  const loserDecision = coinflipState?.loserDecision ?? null;
+  const firstPickSide = coinflipState?.firstPickSide ?? null;
+  const resolved = coinflipState?.resolvedAt != null;
+
+  const nameOf = (id: string | null) =>
+    id === blueTeam.id ? blueTeam.name : id === redTeam.id ? redTeam.name : 'Equipe inconnue';
+  const winnerName = nameOf(winnerTeamId);
+  const loserName = nameOf(loserTeamId);
+
+  const isDev = role === 'DEV_DUAL_CAPTAIN';
+  const isWinner = isDev || (teamId !== null && winnerTeamId !== null && teamId === winnerTeamId);
+  const isLoser = isDev || (teamId !== null && loserTeamId !== null && teamId === loserTeamId);
+
+  // Which category the loser must pick = the one the winner did NOT take.
+  const winnerChoseSide = decision === 'SIDE_BLUE' || decision === 'SIDE_RED';
+  const loserCategory: 'SIDE' | 'ORDER' | null =
+    decision === null ? null : winnerChoseSide ? 'ORDER' : 'SIDE';
 
   async function submit(decisionValue: CoinflipDecision) {
     setError(null);
@@ -720,18 +732,25 @@ function CoinflipPanel({
     setChoiceStep(null);
   }
 
+  const statusLabel = resolved
+    ? 'Decision prise'
+    : decision
+      ? `En attente de ${loserName}`
+      : phase === 'flipping'
+        ? 'Tirage...'
+        : 'Choix du gagnant';
+
   return (
     <section className="flex flex-col gap-4 border border-sky-400/30 bg-surface px-5 py-5">
       <header className="flex items-center justify-between gap-4">
         <div>
           <p className="label-mono text-sky-300">§ Coin flip</p>
           <p className="mt-2 text-sm text-foreground-muted">
-            Le gagnant choisit soit le side, soit l'ordre de pick.
+            Le gagnant choisit le side <span className="text-foreground">ou</span> l'ordre de pick ;
+            le perdant récupère le choix restant.
           </p>
         </div>
-        <span className="label-mono text-foreground-muted">
-          {decision ? 'Decision prise' : phase === 'flipping' ? 'Tirage...' : 'En attente'}
-        </span>
+        <span className="label-mono text-foreground-muted">{statusLabel}</span>
       </header>
 
       {phase === 'flipping' ? (
@@ -740,14 +759,30 @@ function CoinflipPanel({
           <span className="label-mono animate-pulse text-sky-300">RNG</span>
         </div>
       ) : winnerTeamId ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 border border-sky-400/30 bg-sky-400/5 px-5 py-4">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex h-2 w-2 rounded-full bg-sky-300" />
-            <span className="label-mono text-sky-300">Gagnant</span>
-            <span className="font-display text-lg text-foreground">{winnerName}</span>
+        <div className="flex flex-col gap-2 border border-sky-400/30 bg-sky-400/5 px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-2 w-2 rounded-full bg-sky-300" />
+              <span className="label-mono text-sky-300">Gagnant</span>
+              <span className="font-display text-lg text-foreground">{winnerName}</span>
+            </div>
+            {decision ? (
+              <span className="label-mono text-foreground-muted">
+                {formatCoinflipDecision(decision)}
+              </span>
+            ) : null}
           </div>
-          {decision ? (
-            <span className="label-mono text-foreground-muted">{formatCoinflipDecision(decision)}</span>
+          {loserDecision ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-2">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex h-2 w-2 rounded-full bg-foreground-muted" />
+                <span className="label-mono text-foreground-muted">Perdant</span>
+                <span className="font-display text-lg text-foreground">{loserName}</span>
+              </div>
+              <span className="label-mono text-foreground-muted">
+                {formatCoinflipDecision(loserDecision)}
+              </span>
+            </div>
           ) : null}
         </div>
       ) : (
@@ -756,91 +791,143 @@ function CoinflipPanel({
 
       {error ? <Banner tone="danger">{error}</Banner> : null}
 
-      {decision ? (
-        <Banner tone="success">Decision enregistree. La draft demarre...</Banner>
-      ) : isWinner ? (
-        <div className="flex flex-col gap-3">
-          {choiceStep === null ? (
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setChoiceStep('SIDE')}
-                disabled={pending !== null || winnerTeamId === null}
-                className="border border-accent/40 bg-accent/10 px-4 py-2 text-sm text-foreground transition-colors duration-150 hover:bg-accent/20 disabled:opacity-50"
-              >
-                Choisir le side
-              </button>
-              <button
-                type="button"
-                onClick={() => setChoiceStep('ORDER')}
-                disabled={pending !== null || winnerTeamId === null}
-                className="border border-sky-400/40 bg-sky-400/10 px-4 py-2 text-sm text-foreground transition-colors duration-150 hover:bg-sky-400/20 disabled:opacity-50"
-              >
-                Choisir l'ordre de pick
-              </button>
-            </div>
-          ) : choiceStep === 'SIDE' ? (
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void submit('SIDE_BLUE')}
-                disabled={pending !== null}
-                className="border border-accent bg-accent/10 px-4 py-2 text-sm text-foreground disabled:opacity-50"
-              >
-                Blue side
-              </button>
-              <button
-                type="button"
-                onClick={() => void submit('SIDE_RED')}
-                disabled={pending !== null}
-                className="border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-sm text-foreground disabled:opacity-50"
-              >
-                Red side
-              </button>
-              <button
-                type="button"
-                onClick={() => setChoiceStep(null)}
-                disabled={pending !== null}
-                className="border border-hairline px-4 py-2 text-sm text-foreground-muted"
-              >
-                Retour
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void submit('FIRST_PICK')}
-                disabled={pending !== null}
-                className="border border-sky-400/40 bg-sky-400/10 px-4 py-2 text-sm text-foreground disabled:opacity-50"
-              >
-                Premier pick
-              </button>
-              <button
-                type="button"
-                onClick={() => void submit('SECOND_PICK')}
-                disabled={pending !== null}
-                className="border border-hairline bg-bg px-4 py-2 text-sm text-foreground disabled:opacity-50"
-              >
-                Second pick
-              </button>
-              <button
-                type="button"
-                onClick={() => setChoiceStep(null)}
-                disabled={pending !== null}
-                className="border border-hairline px-4 py-2 text-sm text-foreground-muted"
-              >
-                Retour
-              </button>
-            </div>
-          )}
+      {resolved ? (
+        <Banner tone="success">
+          {blueTeam.name} côté bleu · {redTeam.name} côté rouge —{' '}
+          {firstPickSide ? `${firstPickSide === 'BLUE' ? blueTeam.name : redTeam.name} a le premier pick` : ''}.
+          La draft démarre...
+        </Banner>
+      ) : decision === null ? (
+        // ── Step 1: winner chooses a dimension ──
+        isWinner ? (
+          <ChoiceButtons
+            category={choiceStep}
+            pending={pending}
+            onPickCategory={setChoiceStep}
+            onSubmit={submit}
+            allowBoth
+          />
+        ) : (
+          <p className="text-sm text-foreground-muted">
+            En attente de la décision de {winnerName}.
+          </p>
+        )
+      ) : // ── Step 2: loser picks the remaining category ──
+      isLoser ? (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm text-foreground-muted">
+            {winnerName} a choisi {formatCoinflipDecision(decision).toLowerCase()}. À toi de choisir{' '}
+            {loserCategory === 'SIDE' ? 'ton side' : "l'ordre de pick"}.
+          </p>
+          <ChoiceButtons
+            category={loserCategory}
+            pending={pending}
+            onPickCategory={() => undefined}
+            onSubmit={submit}
+          />
         </div>
       ) : (
         <p className="text-sm text-foreground-muted">
-          En attente de la decision de {winnerName}.
+          En attente du choix restant de {loserName}.
         </p>
       )}
     </section>
+  );
+}
+
+/**
+ * Renders side/order value buttons. When `allowBoth`, the actor first picks a
+ * category (side vs order); otherwise `category` is fixed (loser's remaining one).
+ */
+function ChoiceButtons({
+  category,
+  pending,
+  onPickCategory,
+  onSubmit,
+  allowBoth = false,
+}: {
+  category: 'SIDE' | 'ORDER' | null;
+  pending: CoinflipDecision | null;
+  onPickCategory: (c: 'SIDE' | 'ORDER' | null) => void;
+  onSubmit: (d: CoinflipDecision) => void;
+  allowBoth?: boolean;
+}) {
+  const busy = pending !== null;
+  if (allowBoth && category === null) {
+    return (
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => onPickCategory('SIDE')}
+          disabled={busy}
+          className="border border-accent/40 bg-accent/10 px-4 py-2 text-sm text-foreground transition-colors duration-150 hover:bg-accent/20 disabled:opacity-50"
+        >
+          Choisir le side
+        </button>
+        <button
+          type="button"
+          onClick={() => onPickCategory('ORDER')}
+          disabled={busy}
+          className="border border-sky-400/40 bg-sky-400/10 px-4 py-2 text-sm text-foreground transition-colors duration-150 hover:bg-sky-400/20 disabled:opacity-50"
+        >
+          Choisir l'ordre de pick
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {category === 'SIDE' ? (
+        <>
+          <button
+            type="button"
+            onClick={() => onSubmit('SIDE_BLUE')}
+            disabled={busy}
+            className="border border-accent bg-accent/10 px-4 py-2 text-sm text-foreground disabled:opacity-50"
+          >
+            Blue side
+          </button>
+          <button
+            type="button"
+            onClick={() => onSubmit('SIDE_RED')}
+            disabled={busy}
+            className="border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-sm text-foreground disabled:opacity-50"
+          >
+            Red side
+          </button>
+        </>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={() => onSubmit('FIRST_PICK')}
+            disabled={busy}
+            className="border border-sky-400/40 bg-sky-400/10 px-4 py-2 text-sm text-foreground disabled:opacity-50"
+          >
+            Premier pick
+          </button>
+          <button
+            type="button"
+            onClick={() => onSubmit('SECOND_PICK')}
+            disabled={busy}
+            className="border border-hairline bg-bg px-4 py-2 text-sm text-foreground disabled:opacity-50"
+          >
+            Second pick
+          </button>
+        </>
+      )}
+      {allowBoth ? (
+        <button
+          type="button"
+          onClick={() => onPickCategory(null)}
+          disabled={busy}
+          className="border border-hairline px-4 py-2 text-sm text-foreground-muted"
+        >
+          Retour
+        </button>
+      ) : null}
+    </div>
   );
 }
 

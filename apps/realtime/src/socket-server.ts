@@ -159,6 +159,70 @@ async function ensurePreviousDraftResolved(draftId: string): Promise<void> {
   }
 }
 
+function isSideDecision(d: CoinflipDecision): boolean {
+  return d === 'SIDE_BLUE' || d === 'SIDE_RED';
+}
+function isOrderDecision(d: CoinflipDecision): boolean {
+  return d === 'FIRST_PICK' || d === 'SECOND_PICK';
+}
+
+/**
+ * Resolve independent side + pick-order from the two coin-flip choices.
+ * `winnerDecision` is made by the winner, `loserDecision` by the loser; one is
+ * a SIDE_* value and the other a FIRST/SECOND_PICK value (enforced by caller).
+ * Side (blue/red) and first pick are decoupled: the first-pick team may be red.
+ */
+function resolveCoinflipSides(
+  winnerId: string,
+  loserId: string,
+  winnerDecision: CoinflipDecision,
+  loserDecision: CoinflipDecision,
+): { blueTeamId: string; redTeamId: string; firstPickSide: DraftSide } {
+  const otherOf = (id: string) => (id === winnerId ? loserId : winnerId);
+
+  const sideDecision = isSideDecision(winnerDecision) ? winnerDecision : loserDecision;
+  const sideChooser = isSideDecision(winnerDecision) ? winnerId : loserId;
+  const orderDecision = isOrderDecision(winnerDecision) ? winnerDecision : loserDecision;
+  const orderChooser = isOrderDecision(winnerDecision) ? winnerId : loserId;
+
+  const blueTeamId = sideDecision === 'SIDE_BLUE' ? sideChooser : otherOf(sideChooser);
+  const redTeamId = otherOf(blueTeamId);
+
+  const firstPickTeam = orderDecision === 'FIRST_PICK' ? orderChooser : otherOf(orderChooser);
+  const firstPickSide: DraftSide = firstPickTeam === blueTeamId ? 'BLUE' : 'RED';
+
+  return { blueTeamId, redTeamId, firstPickSide };
+}
+
+interface CoinflipRow {
+  blueTeamId: string;
+  redTeamId: string;
+  coinflipWinnerTeamId: string | null;
+  coinflipDecision: CoinflipDecision | null;
+  coinflipLoserDecision: CoinflipDecision | null;
+  coinflipResolvedAt: Date | null;
+  firstPickSide: DraftSide | null;
+}
+
+function coinflipPayload(draftId: string, row: CoinflipRow) {
+  const loserTeamId = row.coinflipWinnerTeamId
+    ? row.coinflipWinnerTeamId === row.blueTeamId
+      ? row.redTeamId
+      : row.blueTeamId
+    : null;
+  return {
+    draftId,
+    winnerTeamId: row.coinflipWinnerTeamId,
+    loserTeamId,
+    blueTeamId: row.blueTeamId,
+    redTeamId: row.redTeamId,
+    decision: row.coinflipDecision,
+    loserDecision: row.coinflipLoserDecision,
+    firstPickSide: row.firstPickSide,
+    resolvedAt: row.coinflipResolvedAt ? row.coinflipResolvedAt.getTime() : null,
+  };
+}
+
 async function readCoinflipState(draftId: string) {
   const row = await prisma.draft.findUnique({
     where: { id: draftId },
@@ -168,7 +232,9 @@ async function readCoinflipState(draftId: string) {
       redTeamId: true,
       coinflipWinnerTeamId: true,
       coinflipDecision: true,
+      coinflipLoserDecision: true,
       coinflipResolvedAt: true,
+      firstPickSide: true,
     },
   });
   if (!row) return null;
@@ -180,14 +246,7 @@ async function readCoinflipState(draftId: string) {
   ) {
     return null;
   }
-  return {
-    draftId,
-    winnerTeamId: row.coinflipWinnerTeamId,
-    blueTeamId: row.blueTeamId,
-    redTeamId: row.redTeamId,
-    decision: row.coinflipDecision,
-    resolvedAt: row.coinflipResolvedAt ? row.coinflipResolvedAt.getTime() : null,
-  };
+  return coinflipPayload(draftId, row);
 }
 
 async function readNextGamePayload(draftId: string) {
@@ -263,14 +322,18 @@ async function maybeTriggerCoinflip(draftId: string, io: DraftIO): Promise<void>
         blueTeamId: draft.blueTeamId,
         redTeamId: draft.redTeamId,
       });
-      io.to(room(draftId)).emit('draft:coinflip_state', {
-        draftId,
-        winnerTeamId,
-        blueTeamId: draft.blueTeamId,
-        redTeamId: draft.redTeamId,
-        decision: null,
-        resolvedAt: null,
-      });
+      io.to(room(draftId)).emit(
+        'draft:coinflip_state',
+        coinflipPayload(draftId, {
+          blueTeamId: draft.blueTeamId,
+          redTeamId: draft.redTeamId,
+          coinflipWinnerTeamId: winnerTeamId,
+          coinflipDecision: null,
+          coinflipLoserDecision: null,
+          coinflipResolvedAt: null,
+          firstPickSide: null,
+        }),
+      );
     });
   } catch (error) {
     if (error instanceof ControllerError) {
@@ -298,16 +361,20 @@ async function resolveCoinflipChoice(args: {
 }) {
   const { draftId, role, teamId, decision } = args;
 
+  const SELECT = {
+    blueTeamId: true,
+    redTeamId: true,
+    coinflipWinnerTeamId: true,
+    coinflipDecision: true,
+    coinflipLoserDecision: true,
+    coinflipResolvedAt: true,
+    firstPickSide: true,
+  } as const;
+
   return withDraftLock(draftId, async () => {
     const draft = await prisma.draft.findUnique({
       where: { id: draftId },
-      select: {
-        status: true,
-        blueTeamId: true,
-        redTeamId: true,
-        coinflipWinnerTeamId: true,
-        coinflipDecision: true,
-      },
+      select: { status: true, ...SELECT },
     });
     if (!draft) throw new ControllerError('NOT_FOUND', 'Draft not found.');
     if (draft.status !== 'COINFLIP') {
@@ -316,55 +383,61 @@ async function resolveCoinflipChoice(args: {
     if (!draft.coinflipWinnerTeamId) {
       throw new ControllerError('CONFLICT', 'Coin flip has not been rolled yet.');
     }
-    if (draft.coinflipDecision !== null) {
-      if (draft.coinflipDecision === decision) {
-        const existing = await readCoinflipState(draftId);
-        if (!existing) {
-          throw new ControllerError('CONFLICT', 'Coin flip state missing.');
-        }
-        return existing;
+
+    // Fully resolved already — idempotent no-op, return current state.
+    if (draft.coinflipResolvedAt !== null) {
+      return coinflipPayload(draftId, draft);
+    }
+
+    const winnerId = draft.coinflipWinnerTeamId;
+    const loserId = winnerId === draft.blueTeamId ? draft.redTeamId : draft.blueTeamId;
+    const isDev = role === 'DEV_DUAL_CAPTAIN';
+    const isWinnerActor = isDev || (teamId !== null && teamId === winnerId);
+    const isLoserActor = isDev || (teamId !== null && teamId === loserId);
+
+    // ── Step 1: the coin-flip winner makes the first choice (side OR order) ──
+    if (draft.coinflipDecision === null) {
+      if (!isWinnerActor) {
+        throw new ControllerError('WRONG_SIDE', 'Only the coin flip winner makes the first choice.');
       }
-      throw new ControllerError('CONFLICT', 'Coin flip decision already locked.');
+      const updated = await prisma.draft.update({
+        where: { id: draftId },
+        data: { coinflipDecision: decision },
+        select: SELECT,
+      });
+      return coinflipPayload(draftId, updated);
     }
 
-    const winnerOwnsChoice =
-      role === 'DEV_DUAL_CAPTAIN' || (teamId !== null && teamId === draft.coinflipWinnerTeamId);
-    if (!winnerOwnsChoice) {
-      throw new ControllerError('WRONG_SIDE', 'Only the coin flip winner can choose.');
+    // ── Step 2: the loser picks the remaining category ──
+    // Winner re-submitting their own (unchanged) first choice: idempotent.
+    if (decision === draft.coinflipDecision && isWinnerActor && !isLoserActor) {
+      return coinflipPayload(draftId, draft);
+    }
+    if (!isLoserActor) {
+      throw new ControllerError('WRONG_SIDE', 'Only the coin flip loser makes the second choice.');
     }
 
-    const otherTeamId =
-      draft.coinflipWinnerTeamId === draft.blueTeamId ? draft.redTeamId : draft.blueTeamId;
-    const winnerOnBlue = decision === 'SIDE_BLUE' || decision === 'FIRST_PICK';
-    const blueTeamId = winnerOnBlue ? draft.coinflipWinnerTeamId : otherTeamId;
-    const redTeamId = winnerOnBlue ? otherTeamId : draft.coinflipWinnerTeamId;
-    const resolvedAt = new Date();
+    const winnerChoseSide = isSideDecision(draft.coinflipDecision);
+    if (winnerChoseSide && !isOrderDecision(decision)) {
+      throw new ControllerError('CONFLICT', 'Expected a pick-order choice (first/second pick).');
+    }
+    if (!winnerChoseSide && !isSideDecision(decision)) {
+      throw new ControllerError('CONFLICT', 'Expected a side choice (blue/red).');
+    }
 
+    const sides = resolveCoinflipSides(winnerId, loserId, draft.coinflipDecision, decision);
     const updated = await prisma.draft.update({
       where: { id: draftId },
       data: {
-        blueTeamId,
-        redTeamId,
-        coinflipDecision: decision,
-        coinflipResolvedAt: resolvedAt,
+        coinflipLoserDecision: decision,
+        blueTeamId: sides.blueTeamId,
+        redTeamId: sides.redTeamId,
+        firstPickSide: sides.firstPickSide,
+        coinflipResolvedAt: new Date(),
       },
-      select: {
-        blueTeamId: true,
-        redTeamId: true,
-        coinflipWinnerTeamId: true,
-        coinflipDecision: true,
-        coinflipResolvedAt: true,
-      },
+      select: SELECT,
     });
-
-    return {
-      draftId,
-      winnerTeamId: updated.coinflipWinnerTeamId,
-      blueTeamId: updated.blueTeamId,
-      redTeamId: updated.redTeamId,
-      decision: updated.coinflipDecision,
-      resolvedAt: updated.coinflipResolvedAt ? updated.coinflipResolvedAt.getTime() : null,
-    };
+    return coinflipPayload(draftId, updated);
   });
 }
 
@@ -824,8 +897,11 @@ function bindHandlers(socket: DraftSocket, controller: DraftController, io: Draf
     }
   });
 
-  socket.on('draft:ping', ({ draftId, ts }) => {
-    socket.emit('draft:timer', { draftId, step: 0, deadline: ts });
+  // Clock sync: reply with the server's current time so the client can compute
+  // its offset and render the countdown against server time (fixes skewed
+  // client clocks showing wrong values, e.g. 100s for a 30s step).
+  socket.on('draft:ping', ({ ts }) => {
+    socket.emit('draft:pong', { clientTs: ts, serverTs: Date.now() });
   });
 
   socket.on('disconnect', () => {

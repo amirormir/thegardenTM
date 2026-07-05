@@ -115,9 +115,14 @@ export function createDraftController(callbacks: SchedulerCallbacks): DraftContr
         // This also enforces "one game running at a time" within a match.
         const meta = await prisma.draft.findUnique({
           where: { id: draftId },
-          select: { matchId: true, gameNumber: true, coinflipDecision: true },
+          select: {
+            matchId: true,
+            gameNumber: true,
+            coinflipResolvedAt: true,
+            firstPickSide: true,
+          },
         });
-        if (!meta?.coinflipDecision) {
+        if (!meta?.coinflipResolvedAt) {
           throw new ControllerError('CONFLICT', 'Coin flip decision must be resolved first.');
         }
         if (meta && meta.gameNumber > 1) {
@@ -138,7 +143,14 @@ export function createDraftController(callbacks: SchedulerCallbacks): DraftContr
         const fearless = await fetchFearlessLocks(draftId);
 
         const now = Date.now();
-        const next = startDraft({ ...state, fearlessLockedChampionIds: fearless }, now);
+        const next = startDraft(
+          {
+            ...state,
+            fearlessLockedChampionIds: fearless,
+            firstPickSide: meta.firstPickSide ?? state.firstPickSide,
+          },
+          now,
+        );
         await markDraftStarted(draftId, now);
         const committed = await commitAndSchedule(next, state.version);
         await callbacks.onStarted(committed);

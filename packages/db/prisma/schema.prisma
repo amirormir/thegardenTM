@@ -108,7 +108,7 @@ model User {
   role                UserRole             @default(USER)
   captainOfTeamId     String?
   captainOfTeam       Team?                @relation("TeamCaptains", fields: [captainOfTeamId], references: [id], onDelete: SetNull)
-  walletBalance       Int                  @default(0)
+  walletBalance       Int                  @default(10000)
   linkedPlayerId      String?              @unique
   linkedPlayer        Player?              @relation("PlayerAccount", fields: [linkedPlayerId], references: [id], onDelete: SetNull)
   walletTransactions  WalletTransaction[]
@@ -651,8 +651,16 @@ model Draft {
 
   coinflipWinnerTeamId String?
   coinflipWinnerTeam   Team?             @relation("CoinflipWinnerTeamDrafts", fields: [coinflipWinnerTeamId], references: [id], onDelete: SetNull)
+  // First choice — made by the coin-flip winner (a side OR a pick-order value).
   coinflipDecision     CoinflipDecision?
+  // Second choice — made by the loser from the remaining category (side/order).
+  coinflipLoserDecision CoinflipDecision?
   coinflipResolvedAt   DateTime?
+
+  // Which side takes the first pick/ban. Decoupled from side selection: the
+  // loser may hold first pick from red side. Null until the coin flip resolves;
+  // treated as BLUE (standard) by the engine when absent.
+  firstPickSide        DraftSide?
 
   // Result vote — captains must agree on the winner before stats are recorded
   // and before the next game in a BO3/BO5 series unlocks.

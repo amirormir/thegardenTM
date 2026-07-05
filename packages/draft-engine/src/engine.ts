@@ -24,11 +24,28 @@ export function createInitialState(options: CreateInitialStateOptions): DraftSta
     currentStep: 0,
     actions: [],
     fearlessLockedChampionIds: [...(options.fearlessLockedChampionIds ?? [])],
+    firstPickSide: options.firstPickSide ?? 'BLUE',
     timerDeadline: null,
     version: 0,
     startedAt: null,
     completedAt: null,
   };
+}
+
+/** Opposite draft side. */
+export function otherSide(side: DraftSide): DraftSide {
+  return side === 'BLUE' ? 'RED' : 'BLUE';
+}
+
+/**
+ * Remap a canonical sequence step (defined with BLUE as first pick) onto the
+ * side that actually holds first pick for this draft. When `firstPickSide` is
+ * 'RED', every BLUE↔RED label is swapped so the red side acts on the "first"
+ * slots — decoupling in-game side from pick order.
+ */
+function applyFirstPick(step: DraftStep, firstPickSide: DraftSide): DraftStep {
+  if (firstPickSide === 'BLUE') return step;
+  return { ...step, side: otherSide(step.side) };
 }
 
 export function beginCoinflip(state: DraftState): DraftState {
@@ -75,7 +92,8 @@ export function cancelDraft(state: DraftState): DraftState {
 
 export function getCurrentStep(state: DraftState): DraftStep | null {
   if (state.status !== 'IN_PROGRESS') return null;
-  return getStep(state.currentStep);
+  const step = getStep(state.currentStep);
+  return step ? applyFirstPick(step, state.firstPickSide ?? 'BLUE') : null;
 }
 
 export function getCurrentSide(state: DraftState): DraftSide | null {

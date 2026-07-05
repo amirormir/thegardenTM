@@ -28,6 +28,12 @@ export interface DraftState {
   actions: LockedAction[];
   /** Champions that cannot be picked in this draft due to fearless lock across BO games. */
   fearlessLockedChampionIds: string[];
+  /**
+   * Which SIDE takes the first pick/ban of the sequence. Decoupled from side
+   * selection: the coin-flip loser may hold first pick from red side. 'BLUE' is
+   * the standard LCK/LEC default (blue side starts).
+   */
+  firstPickSide: DraftSide;
   /** Epoch ms when the current step's timer expires. null if no active step. */
   timerDeadline: number | null;
   /** Optimistic concurrency token. Increments on every state change. */
@@ -39,6 +45,8 @@ export interface DraftState {
 export interface CreateInitialStateOptions {
   draftId: string;
   fearlessLockedChampionIds?: readonly string[];
+  /** Side that takes first pick. Defaults to 'BLUE' (standard). */
+  firstPickSide?: DraftSide;
 }
 
 export interface ActionInput {

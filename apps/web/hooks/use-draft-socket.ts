@@ -61,9 +61,17 @@ export interface NextGameVoteState {
 
 export interface CoinflipState {
   winnerTeamId: string | null;
+  /** The coin-flip loser — holds the second (remaining) choice. */
+  loserTeamId: string | null;
   blueTeamId: string;
   redTeamId: string;
+  /** First choice, made by the winner (side OR pick order). */
   decision: CoinflipDecision | null;
+  /** Second choice, made by the loser from the remaining category. */
+  loserDecision: CoinflipDecision | null;
+  /** Side that picks first once resolved. Null until both choices are locked. */
+  firstPickSide: DraftSide | null;
+  /** Set only once BOTH choices are locked. */
   resolvedAt: number | null;
 }
 
@@ -92,6 +100,8 @@ export interface UseDraftSocketResult {
   /** BO3/BO5 next-game vote state. Null until the server has emitted it (only emitted once a winner is locked). */
   nextGameState: NextGameVoteState | null;
   timerDeadline: number | null;
+  /** Estimated (serverClock − clientClock) in ms. Add to Date.now() for server time. */
+  serverOffset: number;
   participants: ParticipantEntry[];
   error: ServerErrorPayload | null;
   /** Captain-only: signal ready in the lobby. */
@@ -136,6 +146,7 @@ export function useDraftSocket(draftId: string): UseDraftSocketResult {
   const [resultState, setResultState] = useState<ResultVoteState | null>(null);
   const [nextGameState, setNextGameState] = useState<NextGameVoteState | null>(null);
   const [timerDeadline, setTimerDeadline] = useState<number | null>(null);
+  const [serverOffset, setServerOffset] = useState<number>(0);
   const [participants, setParticipants] = useState<ParticipantEntry[]>([]);
   const [error, setError] = useState<ServerErrorPayload | null>(null);
   const socketRef = useRef<DraftClientSocket | null>(null);
@@ -153,6 +164,7 @@ export function useDraftSocket(draftId: string): UseDraftSocketResult {
     setResultState(null);
     setNextGameState(null);
     setTimerDeadline(null);
+    setServerOffset(0);
     setParticipants([]);
     setError(null);
     if (!url) {
@@ -166,6 +178,7 @@ export function useDraftSocket(draftId: string): UseDraftSocketResult {
     }
 
     let cancelled = false;
+    let pingInterval: ReturnType<typeof setInterval> | null = null;
     setStatus('fetching-token');
 
     void (async () => {
@@ -212,6 +225,12 @@ export function useDraftSocket(draftId: string): UseDraftSocketResult {
             if (!ack.ok && ack.error) setError(ack.error);
           },
         );
+        // Clock sync: ping immediately, then periodically, to keep the
+        // server-time offset fresh (the step countdown is drawn against it).
+        const ping = () => socket.emit('draft:ping', { draftId, ts: Date.now() });
+        ping();
+        if (pingInterval) clearInterval(pingInterval);
+        pingInterval = setInterval(ping, 10_000);
       });
 
       socket.on('disconnect', () => {
@@ -252,11 +271,16 @@ export function useDraftSocket(draftId: string): UseDraftSocketResult {
           blueTeamId: payload.blueTeamId,
           redTeamId: payload.redTeamId,
         });
+        const loserTeamId =
+          payload.winnerTeamId === payload.blueTeamId ? payload.redTeamId : payload.blueTeamId;
         setCoinflipState((prev) => ({
           winnerTeamId: payload.winnerTeamId,
+          loserTeamId,
           blueTeamId: payload.blueTeamId,
           redTeamId: payload.redTeamId,
           decision: prev?.decision ?? null,
+          loserDecision: prev?.loserDecision ?? null,
+          firstPickSide: prev?.firstPickSide ?? null,
           resolvedAt: prev?.resolvedAt ?? null,
         }));
       });
@@ -264,9 +288,12 @@ export function useDraftSocket(draftId: string): UseDraftSocketResult {
       socket.on('draft:coinflip_state', (payload) => {
         setCoinflipState({
           winnerTeamId: payload.winnerTeamId,
+          loserTeamId: payload.loserTeamId,
           blueTeamId: payload.blueTeamId,
           redTeamId: payload.redTeamId,
           decision: payload.decision,
+          loserDecision: payload.loserDecision,
+          firstPickSide: payload.firstPickSide,
           resolvedAt: payload.resolvedAt,
         });
       });
@@ -293,6 +320,14 @@ export function useDraftSocket(draftId: string): UseDraftSocketResult {
 
       socket.on('draft:timer', ({ deadline }) => {
         setTimerDeadline(deadline);
+      });
+
+      socket.on('draft:pong', ({ clientTs, serverTs }) => {
+        const clientRecv = Date.now();
+        const rtt = clientRecv - clientTs;
+        // Server time estimated at receipt = serverTs + half the round trip.
+        const offset = serverTs + rtt / 2 - clientRecv;
+        setServerOffset(offset);
       });
 
       socket.on('draft:participant', (entry) => {
@@ -339,6 +374,7 @@ export function useDraftSocket(draftId: string): UseDraftSocketResult {
 
     return () => {
       cancelled = true;
+      if (pingInterval) clearInterval(pingInterval);
       const socket = socketRef.current;
       if (socket) {
         socket.emit('draft:leave', { draftId });
@@ -458,6 +494,7 @@ export function useDraftSocket(draftId: string): UseDraftSocketResult {
     resultState,
     nextGameState,
     timerDeadline,
+    serverOffset,
     participants,
     error,
     ready,

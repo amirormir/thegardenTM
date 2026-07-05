@@ -4,21 +4,23 @@ import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils/cn';
 
 interface DraftTimerProps {
-  /** Unix ms deadline. Null = no active timer. */
+  /** Unix ms deadline (server clock). Null = no active timer. */
   deadline: number | null;
+  /** Estimated (serverClock − clientClock) in ms. Corrects skewed local clocks. */
+  offset?: number;
   /** Total step duration (ms), used to draw the bar. */
   totalMs?: number;
   className?: string;
 }
 
-export function DraftTimer({ deadline, totalMs = 30_000, className }: DraftTimerProps) {
-  const [now, setNow] = useState(() => Date.now());
+export function DraftTimer({ deadline, offset = 0, totalMs = 30_000, className }: DraftTimerProps) {
+  const [now, setNow] = useState(() => Date.now() + offset);
 
   useEffect(() => {
     if (!deadline) return;
-    const id = window.setInterval(() => setNow(Date.now()), 100);
+    const id = window.setInterval(() => setNow(Date.now() + offset), 100);
     return () => window.clearInterval(id);
-  }, [deadline]);
+  }, [deadline, offset]);
 
   if (!deadline) {
     return (

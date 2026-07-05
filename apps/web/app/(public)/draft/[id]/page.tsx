@@ -167,9 +167,15 @@ export default async function DraftRoomPage({ params }: PageProps) {
           draft.coinflipWinnerTeamId
             ? {
                 winnerTeamId: draft.coinflipWinnerTeamId,
+                loserTeamId:
+                  draft.coinflipWinnerTeamId === draft.blueTeam.id
+                    ? draft.redTeam.id
+                    : draft.blueTeam.id,
                 blueTeamId: draft.blueTeam.id,
                 redTeamId: draft.redTeam.id,
                 decision: draft.coinflipDecision,
+                loserDecision: draft.coinflipLoserDecision,
+                firstPickSide: draft.firstPickSide,
                 resolvedAt: draft.coinflipResolvedAt
                   ? draft.coinflipResolvedAt.getTime()
                   : null,

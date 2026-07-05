@@ -54,6 +54,31 @@ function runSteps(state: DraftState, championsBySide: { BLUE: string[]; RED: str
   return current;
 }
 
+describe('decoupled first pick (firstPickSide)', () => {
+  it('defaults to BLUE picking/acting first', () => {
+    const state = startedDraft();
+    expect(state.firstPickSide).toBe('BLUE');
+    expect(getCurrentSide(state)).toBe('BLUE');
+  });
+
+  it('lets RED act first when firstPickSide is RED (side/order decoupled)', () => {
+    const base = createInitialState({ draftId: 'draft-red', firstPickSide: 'RED' });
+    const state = startDraft(beginCoinflip(base), T0);
+
+    // Step 1 is a BLUE ban in the canonical sequence — remapped to RED here.
+    expect(getCurrentSide(state)).toBe('RED');
+    expect(applyAction(state, { championId: 'Aatrox', actorSide: 'BLUE', now: T0 }).ok).toBe(false);
+
+    const res = applyAction(state, { championId: 'Aatrox', actorSide: 'RED', now: T0 });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.locked.side).toBe('RED');
+      // Step 2 (canonical RED) is remapped to BLUE.
+      expect(getCurrentSide(res.state)).toBe('BLUE');
+    }
+  });
+});
+
 describe('DRAFT_SEQUENCE shape', () => {
   it('contains exactly 20 steps', () => {
     expect(DRAFT_SEQUENCE).toHaveLength(20);

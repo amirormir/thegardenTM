@@ -190,10 +190,24 @@ export interface ServerCoinflipResultPayload {
 export interface ServerCoinflipStatePayload {
   draftId: string;
   winnerTeamId: string | null;
+  /** The coin-flip loser — holds the second (remaining) choice. */
+  loserTeamId: string | null;
   blueTeamId: string;
   redTeamId: string;
+  /** First choice, made by the coin-flip winner (side OR pick order). */
   decision: CoinflipDecision | null;
+  /** Second choice, made by the loser from the remaining category. */
+  loserDecision: CoinflipDecision | null;
+  /** Which side picks first once both choices are locked. Null until resolved. */
+  firstPickSide: DraftSide | null;
+  /** Set only once BOTH choices are locked. */
   resolvedAt: number | null;
+}
+
+/** Server → client clock-sync reply. `serverTs` is the server's epoch ms. */
+export interface ServerPongPayload {
+  clientTs: number;
+  serverTs: number;
 }
 
 export interface ServerToClientEvents {
@@ -208,6 +222,7 @@ export interface ServerToClientEvents {
   'draft:participant': (payload: ServerParticipantPayload) => void;
   'draft:participant_left': (payload: { draftId: string; userId: string }) => void;
   'draft:completed': (payload: ServerCompletedPayload) => void;
+  'draft:pong': (payload: ServerPongPayload) => void;
   'draft:cancelled': (payload: { draftId: string }) => void;
   'draft:paused': (payload: { draftId: string }) => void;
   'draft:resumed': (payload: ServerStatePayload) => void;
