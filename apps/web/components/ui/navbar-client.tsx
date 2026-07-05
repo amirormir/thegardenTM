@@ -214,7 +214,7 @@ export function NavbarClient({ seasonLabel }: NavbarClientProps) {
               </button>
 
               {userMenuOpen ? (
-                <div className="absolute right-0 mt-2 w-60 border border-hairline bg-surface p-2 shadow-lg">
+                <div className="absolute right-0 top-full z-50 mt-2 w-60 border border-hairline bg-surface p-2 shadow-lg">
                   <div className="border-b border-hairline px-3 pb-3 pt-1">
                     <p className="text-sm text-foreground">{userName}</p>
                     <p className="mt-1 label-mono">{userRole}</p>
