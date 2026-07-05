@@ -112,20 +112,39 @@ export const LOSS_SCALE = 6.0;
 // --- Moteur de valeur --------------------------------------------------------
 
 export const FLOOR = 10_000_000;
-export const CEIL = 55_000_000;
-export const SPAN = CEIL - FLOOR; // 45_000_000
+export const CEIL = 150_000_000;
+export const SPAN = CEIL - FLOOR; // 140_000_000
+
+/**
+ * Convexité du mapping note-moyenne (baseline 0..100) -> valeur cible :
+ *   target = FLOOR + SPAN * (baseline/100) ** TARGET_GAMMA
+ * γ > 1 « étire le haut » : un joueur moyen (baseline 50) reste ~32,5M comme
+ * avant, seuls les joueurs d'élite montent vers le plafond de 150M.
+ * γ = 2.64 est calibré pour que target(50) ≈ 32,5M (invariant historique).
+ */
+export const TARGET_GAMMA = 2.64;
+
+/**
+ * Amplitude de référence du mouvement « surprise » (kick) par game. Découplée
+ * de SPAN : élargir le plafond à 150M ne doit PAS tripler les mouvements par
+ * game. On la garde ≈ l'ancienne plage (45M) pour conserver l'échelle de
+ * mouvement actuelle, la montée vers 150M se faisant via l'ancre (mean-reversion)
+ * sur plusieurs games.
+ */
+export const MOVE_SPAN = 45_000_000;
 
 export const ALPHA_BASELINE = 0.4;
 export const ALPHA_VOL = 0.35;
 export const W_ANCHOR = 0.15;
-export const W_KICK = 0.075;
+// Réduit (0.075 -> 0.06, ~-20%) : atténue légèrement le mouvement lié à la note.
+export const W_KICK = 0.06;
 export const ASYM = 0.8;
 export const VOL_REF = 22.0;
 export const DAMP = 0.55;
 export const GUARD_EPS = 10.0;
 export const MIN_MOVE_SCALE = 0.5e6;
 
-/** Amorçage d'un nouveau joueur. */
+/** Amorçage d'un nouveau joueur (= target(baseline 50), milieu convexe). */
 export const SEED_VALUE = 32_500_000;
 export const SEED_BASELINE = 50;
 export const SEED_VOL = 8;

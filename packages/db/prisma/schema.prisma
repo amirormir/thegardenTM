@@ -197,7 +197,7 @@ model Player {
   nationality        String?
   marketValue        Int                  @default(0)
   // Moteur d'évolution de valeur : forme moyenne mobile (0..100) et volatilité
-  // (EMA de |note - baseline|). `marketValue` porte la valeur, bornée [10M, 55M].
+  // (EMA de |note - baseline|). `marketValue` porte la valeur, bornée [10M, 150M].
   baseline           Float                @default(50)
   volatility         Float                @default(8)
   salary             Int                  @default(0)

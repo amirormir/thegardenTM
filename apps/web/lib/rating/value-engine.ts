@@ -20,9 +20,11 @@ import {
   FLOOR,
   GUARD_EPS,
   MIN_MOVE_SCALE,
+  MOVE_SPAN,
   SEED_BASELINE,
   SEED_VOL,
   SPAN,
+  TARGET_GAMMA,
   VOL_REF,
   W_ANCHOR,
   W_KICK,
@@ -54,8 +56,14 @@ export interface ValueEngineOptions {
   minMoveScale?: number;
 }
 
-function target(baseline: number): number {
-  return FLOOR + (SPAN * clamp(baseline, 0, 100)) / 100.0;
+/**
+ * Valeur cible (mean-reversion) pour une note-moyenne (baseline 0..100).
+ * Mapping CONVEXE (`TARGET_GAMMA`) : la moyenne reste modérée et seuls les
+ * joueurs d'élite s'approchent du plafond. target(50) ≈ 32,5M, target(100) = CEIL.
+ */
+export function target(baseline: number): number {
+  const b = clamp(baseline, 0, 100) / 100.0;
+  return FLOOR + SPAN * Math.pow(b, TARGET_GAMMA);
 }
 
 /**
@@ -88,7 +96,9 @@ export function applyNote(
   const u = dev / 50.0;
   const gain = 1.0 + asym * (u >= 0 ? 1 - p : p);
   const stab = clamp(1 - volatility / vref, 0, 1);
-  const kick = wk * u * gain * SPAN * (1 - damp * stab);
+  // Le kick (mouvement lié à la note) est calé sur MOVE_SPAN, pas sur SPAN, pour
+  // que le plafond à 150M ne triple pas les mouvements par game.
+  const kick = wk * u * gain * MOVE_SPAN * (1 - damp * stab);
 
   let delta = anchor + kick;
   const minMove = minMoveScale * (Math.abs(dev) / 50.0);
