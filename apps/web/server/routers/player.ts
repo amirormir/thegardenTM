@@ -737,6 +737,8 @@ export const playerRouter = createTRPCRouter({
           gameName: input.gameName,
           tagLine: input.tagLine,
           role: input.role,
+          // Le rôle d'équipe suit le rôle principal (admins pilotent les deux).
+          teamRole: input.role,
           secondaryRoles,
           teamId: input.teamId ?? null,
           imageUrl: input.imageUrl ?? null,
@@ -851,6 +853,8 @@ export const playerRouter = createTRPCRouter({
           ...(data.tagLine ? { tagLine: data.tagLine } : {}),
           ...(data.imageUrl !== undefined ? { imageUrl: data.imageUrl } : {}),
           role: nextRole,
+          // Le rôle d'équipe suit le rôle principal (admins pilotent les deux).
+          teamRole: nextRole,
           secondaryRoles,
           ...(data.teamId !== undefined ? { teamId: data.teamId } : {}),
           ...(data.age !== undefined ? { age: data.age } : {}),

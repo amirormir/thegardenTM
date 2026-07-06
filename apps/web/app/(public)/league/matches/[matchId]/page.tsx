@@ -16,6 +16,7 @@ import { TeamAvatar } from '@/components/ui/team-avatar';
 import { GameStatBars } from '@/components/features/league/game-stat-bars';
 import { GamePlayerBars } from '@/components/features/league/game-player-bars';
 import { GameMvpCard } from '@/components/features/league/game-mvp-card';
+import { SeriesMvpCard } from '@/components/features/league/series-mvp-card';
 import { RatingBadge } from '@/components/features/league/rating-badge';
 import { MatchBetSlip } from '@/components/features/betting/match-bet-slip';
 import { cn } from '@/lib/utils/cn';
@@ -57,6 +58,49 @@ export default async function MatchDetailPage({
 
   const homeWon = match.homeScore > match.awayScore;
   const awayWon = match.awayScore > match.homeScore;
+
+  // MVP du BO : joueur de l'équipe gagnante avec la meilleure moyenne de note
+  // sur l'ensemble de la série.
+  const winningTeamId = !match.isCompleted
+    ? null
+    : homeWon
+      ? match.homeTeam.id
+      : awayWon
+        ? match.awayTeam.id
+        : null;
+  const winningShort =
+    winningTeamId === match.homeTeam.id
+      ? match.homeTeam.shortCode
+      : winningTeamId === match.awayTeam.id
+        ? match.awayTeam.shortCode
+        : '';
+  const seriesMvp = (() => {
+    if (!winningTeamId) return null;
+    const agg = new Map<
+      string,
+      {
+        player: (typeof match.games)[number]['playerStats'][number]['player'];
+        sum: number;
+        count: number;
+      }
+    >();
+    for (const game of match.games) {
+      for (const stat of game.playerStats) {
+        const statTeamId = stat.side === 'BLUE' ? game.blueTeamId : game.redTeamId;
+        if (statTeamId !== winningTeamId) continue;
+        if (stat.note === null || stat.note === undefined) continue;
+        const cur = agg.get(stat.player.id) ?? { player: stat.player, sum: 0, count: 0 };
+        cur.sum += stat.note;
+        cur.count += 1;
+        agg.set(stat.player.id, cur);
+      }
+    }
+    const ranked = [...agg.values()]
+      .filter((a) => a.count > 0)
+      .map((a) => ({ player: a.player, avgNote: a.sum / a.count, games: a.count }))
+      .sort((a, b) => b.avgNote - a.avgNote);
+    return ranked[0] ?? null;
+  })();
 
   const requestedGame = parseSelectedGameNumber(search.game);
   const selectedGame =
@@ -146,6 +190,21 @@ export default async function MatchDetailPage({
         </div>
       </header>
 
+      {seriesMvp ? (
+        <section>
+          <SeriesMvpCard
+            player={{
+              id: seriesMvp.player.id,
+              displayName: seriesMvp.player.displayName,
+              role: seriesMvp.player.role,
+            }}
+            avgNote={seriesMvp.avgNote}
+            games={seriesMvp.games}
+            teamShortCode={winningShort}
+          />
+        </section>
+      ) : null}
+
       {selectedGame ? (
         <section>
           <div className="flex flex-wrap items-end justify-between gap-4">
@@ -206,44 +265,6 @@ export default async function MatchDetailPage({
                 );
               })}
             </nav>
-          ) : null}
-
-          {selectedGame.playerStats.length > 0 ? (
-            <div className="mt-8 flex flex-col gap-10">
-              <GameMvpCard playerStats={selectedGame.playerStats} />
-              <GameStatBars
-                playerStats={selectedGame.playerStats}
-                blueTeamShortCode={
-                  selectedGame.blueTeamId === match.homeTeam.id
-                    ? match.homeTeam.shortCode
-                    : match.awayTeam.shortCode
-                }
-                redTeamShortCode={
-                  selectedGame.redTeamId === match.homeTeam.id
-                    ? match.homeTeam.shortCode
-                    : match.awayTeam.shortCode
-                }
-                winningSide={
-                  selectedGame.winnerTeamId === selectedGame.blueTeamId
-                    ? 'BLUE'
-                    : selectedGame.winnerTeamId === selectedGame.redTeamId
-                      ? 'RED'
-                      : null
-                }
-              />
-              <GamePlayerBars
-                playerStats={selectedGame.playerStats}
-                metric="damage"
-                title="Dégâts par joueur"
-                helper="Bleu vs Rouge"
-              />
-              <GamePlayerBars
-                playerStats={selectedGame.playerStats}
-                metric="gold"
-                title="Gold par joueur"
-                helper="Bleu vs Rouge"
-              />
-            </div>
           ) : null}
 
           <div className="mt-8 flex flex-col gap-8">
@@ -354,6 +375,44 @@ export default async function MatchDetailPage({
               </p>
             )}
           </div>
+
+          {selectedGame.playerStats.length > 0 ? (
+            <div className="mt-12 flex flex-col gap-10">
+              <GameMvpCard playerStats={selectedGame.playerStats} />
+              <GameStatBars
+                playerStats={selectedGame.playerStats}
+                blueTeamShortCode={
+                  selectedGame.blueTeamId === match.homeTeam.id
+                    ? match.homeTeam.shortCode
+                    : match.awayTeam.shortCode
+                }
+                redTeamShortCode={
+                  selectedGame.redTeamId === match.homeTeam.id
+                    ? match.homeTeam.shortCode
+                    : match.awayTeam.shortCode
+                }
+                winningSide={
+                  selectedGame.winnerTeamId === selectedGame.blueTeamId
+                    ? 'BLUE'
+                    : selectedGame.winnerTeamId === selectedGame.redTeamId
+                      ? 'RED'
+                      : null
+                }
+              />
+              <GamePlayerBars
+                playerStats={selectedGame.playerStats}
+                metric="damage"
+                title="Dégâts par joueur"
+                helper="Bleu vs Rouge"
+              />
+              <GamePlayerBars
+                playerStats={selectedGame.playerStats}
+                metric="gold"
+                title="Gold par joueur"
+                helper="Bleu vs Rouge"
+              />
+            </div>
+          ) : null}
         </section>
       ) : (
         <section className="border-y border-hairline py-12">

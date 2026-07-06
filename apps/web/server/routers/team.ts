@@ -489,9 +489,12 @@ export const teamRouter = createTRPCRouter({
 
       ensureTeamAccess(ctx.session.user, player.teamId);
 
+      // Le rôle d'équipe pilote aussi le rôle principal du joueur : changer l'un
+      // met l'autre à jour (les capitaines ET les admins peuvent le faire — cf.
+      // ensureTeamAccess qui laisse passer les ADMIN).
       return ctx.prisma.player.update({
         where: { id: input.playerId },
-        data: { teamRole: input.teamRole },
+        data: { teamRole: input.teamRole, role: input.teamRole },
         select: { id: true, gameName: true, role: true, teamRole: true },
       });
     }),
