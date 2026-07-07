@@ -19,6 +19,7 @@ import { GameMvpCard } from '@/components/features/league/game-mvp-card';
 import { SeriesMvpCard } from '@/components/features/league/series-mvp-card';
 import { RatingBadge } from '@/components/features/league/rating-badge';
 import { MatchBetSlip } from '@/components/features/betting/match-bet-slip';
+import { MatchRosters } from '@/components/features/betting/match-rosters';
 import { cn } from '@/lib/utils/cn';
 import { formatDateTime } from '@/lib/utils/format';
 import { getPublicCaller } from '@/server/public/caller';
@@ -185,8 +186,9 @@ export default async function MatchDetailPage({
           <p className="mt-8 max-w-2xl text-base leading-7 text-foreground-dim">{match.notes}</p>
         ) : null}
 
-        <div className="mt-10 max-w-md">
+        <div className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,26rem)_1fr] lg:items-start">
           <MatchBetSlip matchId={match.id} />
+          <MatchRosters homeTeam={match.homeTeam} awayTeam={match.awayTeam} />
         </div>
       </header>
 

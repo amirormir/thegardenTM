@@ -19,6 +19,17 @@ import { recomputeOdds, recomputeOddsForTeams } from '@/server/utils/betting/rec
 import { creditWallet } from '@/server/utils/wallet';
 import { adminProcedure, createTRPCRouter, publicProcedure } from '@/server/trpc';
 
+const matchRosterPlayerSelect = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  gameName: true,
+  tagLine: true,
+  imageUrl: true,
+  role: true,
+  marketValue: true,
+} as const;
+
 const matchListSelect = {
   id: true,
   format: true,
@@ -92,6 +103,10 @@ export const matchRouter = createTRPCRouter({
             name: true,
             shortCode: true,
             logoUrl: true,
+            players: {
+              where: { isActive: true },
+              select: matchRosterPlayerSelect,
+            },
           },
         },
         awayTeam: {
@@ -100,6 +115,10 @@ export const matchRouter = createTRPCRouter({
             name: true,
             shortCode: true,
             logoUrl: true,
+            players: {
+              where: { isActive: true },
+              select: matchRosterPlayerSelect,
+            },
           },
         },
         season: {
@@ -156,6 +175,20 @@ export const matchRouter = createTRPCRouter({
 
     return {
       ...match,
+      homeTeam: {
+        ...match.homeTeam,
+        players: match.homeTeam.players.map((player) => ({
+          ...player,
+          displayName: resolveStoredPlayerDisplayName(player),
+        })),
+      },
+      awayTeam: {
+        ...match.awayTeam,
+        players: match.awayTeam.players.map((player) => ({
+          ...player,
+          displayName: resolveStoredPlayerDisplayName(player),
+        })),
+      },
       games: match.games.map((game) => ({
         ...game,
         playerStats: game.playerStats.map((stat) => ({
